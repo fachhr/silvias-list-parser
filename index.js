@@ -66,11 +66,11 @@ const getOptionsStringForSimpleArray = (optionsArray) => {
 
 // Convert file to text
 async function convertFileToText(storagePath) {
-  console.log(`[convertFileToText] Attempting to download from raw-cvs bucket: ${storagePath}`);
+  console.log(`[convertFileToText] Attempting to download from talent-pool-cvs bucket: ${storagePath}`);
   console.log(`[convertFileToText] Supabase URL: ${process.env.SUPABASE_URL ? 'SET' : 'NOT SET'}`);
   console.log(`[convertFileToText] Service Role Key: ${process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET (length: ' + process.env.SUPABASE_SERVICE_ROLE_KEY.length + ')' : 'NOT SET'}`);
 
-  const { data, error } = await supabase.storage.from('raw-cvs').download(storagePath);
+  const { data, error } = await supabase.storage.from('talent-pool-cvs').download(storagePath);
 
   if (error) {
     console.error(`[convertFileToText] Supabase download error:`, {
@@ -405,7 +405,7 @@ async function extractProfilePicture(storagePath, userId, isQuickCV = false) {
 
   try {
     // Download file from storage
-    const { data, error } = await supabase.storage.from('raw-cvs').download(storagePath);
+    const { data, error } = await supabase.storage.from('talent-pool-cvs').download(storagePath);
 
     if (error) {
       console.error('[extractProfilePicture] Download error:', error);
@@ -1155,44 +1155,18 @@ app.post('/api/v1/parse', (req, res, next) => {
   try {
     await supabase.from('cv_parsing_jobs').update({ status: 'processing' }).eq('id', jobId);
 
-    // Fetch job record to determine user context
-    const { data: jobRecord, error: jobFetchError } = await supabase
-      .from('cv_parsing_jobs')
-      .select('clerk_user_id, is_quick')
-      .eq('id', jobId)
-      .single();
-
-    if (jobFetchError) {
-      console.warn(`[Job ${jobId}] Could not fetch job record for picture extraction:`, jobFetchError);
-    }
+    // For Silvia's List: Extract userId (profileId) from storagePath
+    // Path format: {profileId}/cv.{ext}
+    const match = storagePath.match(/^([^\/]+)\//);
+    const userId = match ? match[1] : 'unknown';
+    const isQuickCV = false; // Silvia's List doesn't use quick CV mode
 
     // Extract text and profile picture in parallel
     const [cvText, profilePicturePath] = await Promise.all([
       convertFileToText(storagePath),
       (async () => {
         try {
-          // Determine userId for picture storage
-          let userId;
-          let isQuickCV = false;
-
-          if (jobRecord) {
-            isQuickCV = jobRecord.is_quick === true;
-            if (isQuickCV) {
-              // For Quick CV, extract sessionId from storagePath
-              // Path format: quick-uploads/{sessionId}/{filename}
-              const match = storagePath.match(/quick-uploads\/([^\/]+)\//);
-              userId = match ? match[1] : 'anonymous';
-            } else {
-              // For Profile CV, use clerk_user_id
-              userId = jobRecord.clerk_user_id || 'unknown';
-            }
-          } else {
-            // Fallback: try to extract from path
-            const match = storagePath.match(/^([^\/]+)\//);
-            userId = match ? match[1] : 'unknown';
-          }
-
-          console.log(`[Job ${jobId}] Extracting profile picture (userId: ${userId}, isQuickCV: ${isQuickCV})`);
+          console.log(`[Job ${jobId}] Extracting profile picture (userId: ${userId})`);
           return await extractProfilePicture(storagePath, userId, isQuickCV);
         } catch (pictureError) {
           // Graceful degradation - don't fail parsing if picture extraction fails

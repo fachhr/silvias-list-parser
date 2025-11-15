@@ -1223,6 +1223,8 @@ app.post('/api/v1/parse', (req, res, next) => {
     }).eq('id', jobId);
 
     console.log(`[Job ${jobId}] ✓ CV parsing completed successfully.`);
+    console.log(`[Job ${jobId}] → Database trigger will now sync data to user_profiles (profile_id: ${profileId})`);
+    console.log(`[Job ${jobId}] → Fields to sync: education, experience, skills, languages, certifications, projects, contact details, profile picture`);
 
   } catch (error) {
     console.error(`[Job ${jobId}] ✗ CV parsing failed:`, error);

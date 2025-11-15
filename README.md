@@ -178,9 +178,9 @@ Health check endpoint.
 ### 1. CV Upload Flow
 
 ```
-Frontend → Supabase Storage → Database Record Created
+Frontend → Supabase Storage → user_profiles Record Created (17 fields)
                 ↓
-         Parser Service Triggered (async)
+         Parser Service Triggered (async, non-blocking)
                 ↓
          Download CV from Storage
                 ↓
@@ -192,10 +192,22 @@ Frontend → Supabase Storage → Database Record Created
                 ↓
          Data Validation & Normalization
                 ↓
-         Update Database Record
+         Update cv_parsing_jobs (status='completed', extracted_data)
+                ↓
+         🔥 DATABASE TRIGGER FIRES AUTOMATICALLY 🔥
+                ↓
+         Sync extracted_data → user_profiles (+ 14 fields)
                 ↓
          Set parsing_completed_at timestamp
+                ↓
+         ✅ Complete profile ready (31 fields total)
 ```
+
+**Key Architecture Decision:**
+- Parser writes to `cv_parsing_jobs.extracted_data` (JSONB)
+- PostgreSQL trigger automatically syncs to `user_profiles`
+- Separation of concerns: Parser doesn't directly modify user_profiles
+- Atomic transactions: Either all fields sync or none
 
 ### 2. Two-Pass Parsing
 

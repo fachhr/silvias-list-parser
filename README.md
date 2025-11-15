@@ -250,27 +250,47 @@ When direct extraction fails:
 | `MIN_CONFIDENCE_THRESHOLD` | No | 60 | Min % for picture detection |
 | `PORT` | No | 3002 | Server port |
 
+## Database Setup
+
+### Deploy PostgreSQL Trigger
+
+**IMPORTANT:** Before deploying the parser, you must install the database trigger in Supabase.
+
+1. Open Supabase Dashboard → SQL Editor
+2. Copy contents of `database/sync_trigger.sql`
+3. Execute the SQL script
+4. Verify trigger installation:
+```sql
+SELECT trigger_name, event_manipulation, event_object_table
+FROM information_schema.triggers
+WHERE trigger_name = 'trigger_sync_parsed_cv_data';
+```
+
+This trigger automatically syncs parsed CV data from `cv_parsing_jobs` to `user_profiles` when parsing completes.
+
 ## Deployment to Railway
 
 ### Quick Deploy
 
 1. Push code to GitHub
 
-2. Create new Railway project:
+2. **Deploy database trigger** (see Database Setup above)
+
+3. Create new Railway project:
    - Go to [Railway.app](https://railway.app)
    - Click "New Project"
    - Select "Deploy from GitHub repo"
    - Choose `silvias-list-parser`
 
-3. Configure environment variables:
+4. Configure environment variables:
    - Go to project → Variables
    - Add all required variables from `.env.example`
 
-4. Deploy:
+5. Deploy:
    - Railway auto-deploys on push
    - Get your service URL: `https://your-app.railway.app`
 
-5. Test:
+6. Test:
 ```bash
 curl https://your-app.railway.app/health
 ```

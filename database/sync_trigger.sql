@@ -43,6 +43,7 @@ RETURNS TRIGGER AS $$
 DECLARE
   v_profile_id UUID;
   v_rows_updated INTEGER;
+  v_written_years INTEGER;
 BEGIN
   -- Log trigger activation
   RAISE NOTICE 'Trigger activated: sync_parsed_cv_data_to_profile for job ID %', NEW.id;
@@ -58,6 +59,13 @@ BEGIN
 
     -- Log data sync start
     RAISE NOTICE 'Syncing parsed data for profile % from job %', NEW.profile_id, NEW.id;
+
+    -- DEBUG: Log years_of_experience value and type
+    RAISE NOTICE '[DEBUG] extracted_data type: %', pg_typeof(NEW.extracted_data);
+    RAISE NOTICE '[DEBUG] years_of_experience raw: %', NEW.extracted_data->'years_of_experience';
+    RAISE NOTICE '[DEBUG] years_of_experience as text: %', NEW.extracted_data->>'years_of_experience';
+    RAISE NOTICE '[DEBUG] IS NOT NULL check: %', (NEW.extracted_data->>'years_of_experience' IS NOT NULL);
+    RAISE NOTICE '[DEBUG] regex match: %', (NEW.extracted_data->>'years_of_experience' ~ '^\d+$');
 
     -- Perform atomic update to user_profiles
     UPDATE user_profiles
@@ -191,6 +199,13 @@ BEGIN
 
     -- Get number of rows updated
     GET DIAGNOSTICS v_rows_updated = ROW_COUNT;
+
+    -- DEBUG: Check what was actually written
+    SELECT years_of_experience INTO v_written_years
+    FROM user_profiles
+    WHERE id = NEW.profile_id;
+
+    RAISE NOTICE '[DEBUG] years_of_experience written to DB: %', v_written_years;
 
     -- Log result
     IF v_rows_updated = 1 THEN

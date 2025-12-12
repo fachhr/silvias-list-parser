@@ -1066,6 +1066,66 @@ ${cvText}
 }
 
 // ==========================================
+// PROFILE BIO GENERATION
+// ==========================================
+
+/**
+ * Generates a professional profile summary for a candidate using GPT.
+ * @param {object} extractedData - The parsed candidate data
+ * @returns {Promise<string|null>} - Generated bio or null on failure
+ */
+async function generateProfileBio(extractedData) {
+  const systemPrompt = `
+    You are a Senior Executive Search Consultant at "Silvia's List," a prestigious boutique recruitment firm in Zurich, Switzerland.
+    Your specialty is the Commodities, Energy, and Trading sectors.
+
+    Your Task:
+    Write a concise, high-impact professional profile summary (3-4 sentences max) for a candidate based on the provided JSON data.
+
+    Tone & Style:
+    - Professional, objective, and impressive.
+    - Third-person perspective (e.g., "An experienced...", "This professional...").
+    - ANONYMOUS: Do not use names or gendered pronouns (he/she). Use "they," "the candidate," or "this professional."
+    - Swiss Context: Be precise about work permits and locations.
+
+    Structure:
+    1. Opening: Seniority + Role + Years of Experience.
+    2. The "Hook": Integrate any highlight/achievement seamlessly.
+    3. Skills: Mention top 3 functional expertise or technical skills.
+    4. Closing: Availability and key strengths.
+  `;
+
+  const userPrompt = `
+    Please generate the profile summary for this candidate:
+
+    ${JSON.stringify(extractedData, null, 2)}
+
+    Note:
+    - Expand Canton codes (e.g., 'ZG' -> 'Zug', 'ZH' -> 'Zurich', 'TI' -> 'Ticino').
+    - If there is a 'highlight' field with a quote, paraphrase it into a professional achievement statement.
+    - Salary should NOT be mentioned in the bio.
+    - Keep it to 3-4 sentences maximum.
+  `;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini', // Cost-efficient for short summaries
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 200,
+    });
+
+    return response.choices[0]?.message?.content?.trim() || null;
+  } catch (error) {
+    console.error('[generateProfileBio] Error:', error.message);
+    return null; // Graceful degradation
+  }
+}
+
+// ==========================================
 // MAIN PARSING LOGIC WITH TWO-STAGE APPROACH
 // ==========================================
 
@@ -1222,6 +1282,16 @@ app.post('/api/v1/parse', (req, res, next) => {
     // Add profile picture path to extracted data
     if (profilePicturePath) {
       extractedData.profile_picture_storage_path = profilePicturePath;
+    }
+
+    // Generate professional profile bio
+    console.log(`[Job ${jobId}] Generating professional bio...`);
+    const profileBio = await generateProfileBio(extractedData);
+    if (profileBio) {
+      extractedData.profile_bio = profileBio;
+      console.log(`[Job ${jobId}] Bio generated: ${profileBio.substring(0, 50)}...`);
+    } else {
+      console.log(`[Job ${jobId}] Bio generation skipped or failed`);
     }
 
     // Update job status to completed with extracted data

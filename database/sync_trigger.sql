@@ -152,16 +152,16 @@ BEGIN
         contact_address
       ),
 
-      -- GitHub profile URL
-      githubUrl = COALESCE(
+      -- GitHub profile URL (quoted for PostgreSQL case sensitivity)
+      "githubUrl" = COALESCE(
         NEW.extracted_data->>'githubUrl',
-        githubUrl
+        "githubUrl"
       ),
 
-      -- Portfolio/personal website URL
-      portfolioUrl = COALESCE(
+      -- Portfolio/personal website URL (quoted for PostgreSQL case sensitivity)
+      "portfolioUrl" = COALESCE(
         NEW.extracted_data->>'portfolioUrl',
-        portfolioUrl
+        "portfolioUrl"
       ),
 
       -- ================================================================

@@ -1126,6 +1126,60 @@ async function generateProfileBio(extractedData) {
 }
 
 // ==========================================
+// SHORT SUMMARY GENERATION (2 sentences)
+// ==========================================
+
+/**
+ * Generates a 2-sentence short summary for candidate cards.
+ * @param {object} extractedData - The parsed candidate data
+ * @returns {Promise<string|null>} - Generated summary or null on failure
+ */
+async function generateShortSummary(extractedData) {
+  const systemPrompt = `
+    You are a Senior Executive Search Consultant at "Silvia's List," a boutique recruitment firm in Zurich.
+    Your specialty is the Commodities, Energy, and Trading sectors.
+
+    Write an extremely concise, high-impact professional summary in EXACTLY 2 sentences for a candidate card.
+
+    Tone: Professional, punchy, impressive. Third-person. ANONYMOUS (no names/gendered pronouns).
+
+    Structure:
+    Sentence 1: Core identity + primary strength
+    Sentence 2: Key differentiator or proven capability
+
+    Examples:
+    - "Seasoned trader with a strong track record in European power and gas markets. Proven ability to manage large portfolios."
+    - "Analytical thinker specializing in base metals supply chain analysis. Expert in building predictive models."
+    - "Expert in end-to-end supply chain management for the energy sector. Fluent in English, German, and French."
+    - "Building high-frequency trading systems and risk tools for energy desks. Strong mathematical background."
+    - "Strategic leader driving ESG initiatives and carbon footprint reduction for global commodity firms."
+  `;
+
+  const userPrompt = `
+    Generate a 2-sentence short summary for this candidate:
+    ${JSON.stringify(extractedData, null, 2)}
+
+    Requirements: EXACTLY 2 sentences. No salary/company names. Focus on role, expertise, key strength.
+  `;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.6,
+      max_tokens: 100,
+    });
+    return response.choices[0]?.message?.content?.trim() || null;
+  } catch (error) {
+    console.error('[generateShortSummary] Error:', error.message);
+    return null;
+  }
+}
+
+// ==========================================
 // MAIN PARSING LOGIC WITH TWO-STAGE APPROACH
 // ==========================================
 
@@ -1294,6 +1348,16 @@ app.post('/api/v1/parse', (req, res, next) => {
       console.log(`[Job ${jobId}] Bio generation skipped or failed`);
     }
 
+    // Generate short summary for card display
+    console.log(`[Job ${jobId}] Generating short summary...`);
+    const shortSummary = await generateShortSummary(extractedData);
+    if (shortSummary) {
+      extractedData.short_summary = shortSummary;
+      console.log(`[Job ${jobId}] Short summary generated: ${shortSummary.substring(0, 50)}...`);
+    } else {
+      console.log(`[Job ${jobId}] Short summary generation skipped or failed`);
+    }
+
     // Update job status to completed with extracted data
     const { error: updateError } = await supabase.from('cv_parsing_jobs').update({
       status: 'completed',
@@ -1311,6 +1375,9 @@ app.post('/api/v1/parse', (req, res, next) => {
 
     if (extractedData.profile_bio) {
       profileUpdateData.profile_bio = extractedData.profile_bio;
+    }
+    if (extractedData.short_summary) {
+      profileUpdateData.short_summary = extractedData.short_summary;
     }
     if (extractedData.functional_expertise) {
       profileUpdateData.functional_expertise = extractedData.functional_expertise;

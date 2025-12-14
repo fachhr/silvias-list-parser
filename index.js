@@ -1070,6 +1070,39 @@ ${cvText}
 // ==========================================
 
 /**
+ * Removes known company names from generated text.
+ * Safety net in case GPT includes company names despite instructions.
+ * @param {string} text - The generated bio text
+ * @param {Array} professionalExperience - Array of experience objects with companyName
+ * @returns {string} - Sanitized text with company names replaced
+ */
+function sanitizeCompanyNames(text, professionalExperience) {
+  if (!text || !Array.isArray(professionalExperience)) {
+    return text;
+  }
+
+  let sanitized = text;
+
+  const companyNames = professionalExperience
+    .map(exp => exp.companyName)
+    .filter(name => name && name.trim().length > 2)
+    .filter((name, index, arr) =>
+      arr.findIndex(n => n.toLowerCase() === name.toLowerCase()) === index
+    );
+
+  // Longest first to avoid partial replacements
+  companyNames.sort((a, b) => b.length - a.length);
+
+  for (const company of companyNames) {
+    const escaped = company.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`\\b${escaped}\\b`, 'gi');
+    sanitized = sanitized.replace(regex, 'a previous employer');
+  }
+
+  return sanitized;
+}
+
+/**
  * Generates a professional profile summary for a candidate using GPT.
  * @param {object} extractedData - The parsed candidate data
  * @returns {Promise<string|null>} - Generated bio or null on failure
@@ -1085,7 +1118,7 @@ async function generateProfileBio(extractedData) {
     Tone & Style:
     - Professional, objective, and impressive.
     - Third-person perspective (e.g., "An experienced...", "This professional...").
-    - ANONYMOUS: Do not use names or gendered pronouns (he/she). Use "they," "the candidate," or "this professional."
+    - ANONYMOUS: Do not use names, gendered pronouns (he/she), or specific company names. Use "they," "the candidate," or "this professional." Refer to employers generically (e.g., "a major trading house," "a leading commodities firm," "a global energy company").
     - Swiss Context: Be precise about work permits and locations.
 
     Structure:
@@ -1118,7 +1151,8 @@ async function generateProfileBio(extractedData) {
       max_tokens: 200,
     });
 
-    return response.choices[0]?.message?.content?.trim() || null;
+    const rawBio = response.choices[0]?.message?.content?.trim() || null;
+    return rawBio ? sanitizeCompanyNames(rawBio, extractedData.professional_experience) : null;
   } catch (error) {
     console.error('[generateProfileBio] Error:', error.message);
     return null; // Graceful degradation

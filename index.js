@@ -1139,7 +1139,7 @@ async function generateShortSummary(extractedData) {
 You are an executive recruiter writing ultra-short candidate summaries for card displays.
 
 Rules:
-- EXACTLY 2 sentences
+- EXACTLY 3 sentences
 - Each sentence MUST be under 12 words
 - No names, no company names, no pronouns
 - No years of experience (already shown elsewhere)
@@ -1149,19 +1149,19 @@ Rules:
 
 Examples:
 
-Seasoned power trader focused on European gas and electricity. Proven P&L track record.
+Seasoned power trader focused on European gas and electricity. Proven P&L track record. Expert in hedging and portfolio optimization.
 
-Quant developer building trading systems for commodity desks. Strong C++ and Python.
+Quant developer building trading systems for commodity desks. Strong C++ and Python. Experienced with real-time pricing engines.
 
-Supply chain expert in LNG and crude logistics. Track record optimizing costs.
+Supply chain expert in LNG and crude logistics. Track record optimizing costs. Deep knowledge of shipping and terminals.
 
-Risk manager specializing in commodity derivatives. Deep regulatory expertise.
+Risk manager specializing in commodity derivatives. Deep regulatory expertise. Skilled in VaR modeling and stress testing.
 
-Senior analyst covering base metals and agricultural commodities. Strong modeling skills.
+Senior analyst covering base metals and agricultural commodities. Strong modeling skills. Published research on market fundamentals.
   `;
 
   const userPrompt = `
-Generate a 2-sentence summary (each under 12 words) for:
+Generate a 3-sentence summary (each under 12 words) for:
 ${JSON.stringify(extractedData, null, 2)}
   `;
 
@@ -1173,7 +1173,7 @@ ${JSON.stringify(extractedData, null, 2)}
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.6,
-      max_tokens: 60,
+      max_tokens: 80,
     });
     return response.choices[0]?.message?.content?.trim() || null;
   } catch (error) {

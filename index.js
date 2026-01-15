@@ -56,7 +56,7 @@ const PDF_MAX_PAGES_TO_SCAN = 2; // Only scan first N pages for images
 // OpenAI API configuration
 const OPENAI_MODEL_PARSING = 'gpt-4o'; // Model for CV text parsing
 const OPENAI_MODEL_VISION = 'gpt-4o-mini'; // Model for image analysis
-const OPENAI_TEMP_PARSING = 0.1; // Temperature for parsing (lower = more deterministic)
+const OPENAI_TEMP_PARSING = 0; // Temperature for parsing (0 = fully deterministic for consistent company classification)
 const OPENAI_TEMP_VISION = 0.3; // Temperature for vision analysis
 const OPENAI_MAX_TOKENS_VISION = 200; // Max tokens for vision response
 
@@ -987,7 +987,9 @@ function createComprehensiveParsingPrompt(cvText) {
     }],
     "professional_experience": [{
       "positionName": "string",
+      "position_short": "string (normalized job title for display, max 30 chars - see POSITION NORMALIZATION below)",
       "companyName": "string",
+      "company_type": "string (concise industry classification, 2-4 words max - see COMPANY TYPE CLASSIFICATION below)",
       "positionType": "string (${positionTypes}) | null",
       "experienceType": "'industrial' | 'academic' | null",
       "description": "string (brief job description if available) | null",
@@ -1085,6 +1087,52 @@ CRITICAL EXTRACTION RULES:
     Trading, Risk Management, Quantitative Analysis, Technology, Operations, Finance, Leadership, Legal, Compliance, Research, Analytics, Engineering
 
     Return 1-8 categories maximum. Prioritize most relevant based on career focus and seniority.
+
+16. **COMPANY TYPE CLASSIFICATION** - For each job in professional_experience, classify the company into a concise industry category (2-4 words max).
+
+    **Classification Guidelines:**
+    - Use the most commonly recognized industry term for the company type
+    - Be specific but not overly granular (e.g., "Trading House" not "Commodity Trading Company")
+    - For well-known companies, use standard industry classifications
+    - For less-known companies, classify based on the company's primary business activity and industry sector
+
+    **Common Classifications (examples, not exhaustive):**
+    - "Investment Bank" (Goldman Sachs, Morgan Stanley, JP Morgan)
+    - "Major Bank" (UBS, Credit Suisse, Deutsche Bank, HSBC)
+    - "Trading House" (Trafigura, Vitol, Glencore, Gunvor, Mercuria)
+    - "Oil & Gas Major" (Shell, BP, TotalEnergies, ExxonMobil)
+    - "Utility" (Axpo, Alpiq, E.ON, RWE, Engie)
+    - "Mining Company" (BHP, Rio Tinto, Vale)
+    - "Asset Manager" (BlackRock, Vanguard, PIMCO)
+    - "Hedge Fund" (Citadel, Bridgewater, Two Sigma)
+    - "Private Equity" (KKR, Blackstone, Carlyle)
+    - "Strategy Consultancy" (McKinsey, BCG, Bain)
+    - "Big 4 / Accounting" (Deloitte, PwC, KPMG, EY)
+    - "Tech Company" (Google, Microsoft, Meta)
+    - "Renewable Energy" (Ørsted, Vestas, First Solar)
+
+    **Important:** You are NOT limited to these categories - classify dynamically based on your knowledge of the company.
+
+17. **POSITION NORMALIZATION** - For each job, create a normalized short title for display (max 30 characters).
+
+    **Normalization Rules:**
+    1. Remove company-specific levels (III, L5, Grade 2, Band 7)
+    2. Use standard abbreviations: Senior → Sr., Junior → Jr., Vice President → VP, Managing Director → MD
+    3. Remove redundant words: "of", "for", "the", "and", "in" where possible
+    4. Keep the core role identity clear
+    5. Max 30 characters - truncate intelligently if needed
+
+    **Examples:**
+    - "Senior Vice President of Global Risk Management" → "SVP Risk Management"
+    - "Software Engineer III" → "Sr. Software Engineer"
+    - "Junior Python Backend Developer" → "Jr. Backend Developer"
+    - "Associate Director, Trading Operations" → "Assoc. Director Trading"
+    - "Head of Quantitative Research and Development" → "Head of Quant Research"
+    - "L5 Software Development Engineer" → "Sr. Software Engineer"
+    - "Managing Director - Commodities Trading" → "MD Commodities Trading"
+
+    **Keep these unchanged** (already short/standard):
+    - Analyst, Associate, Trader, Developer, Engineer, Manager, Director, VP, SVP, MD, Partner
 
 EXPECTED JSON OUTPUT STRUCTURE:
 ${jsonStructure}

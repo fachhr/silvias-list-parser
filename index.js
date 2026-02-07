@@ -1278,6 +1278,8 @@ async function generateProfileBio(extractedData) {
     - Expand Canton codes (e.g., 'ZG' -> 'Zug', 'ZH' -> 'Zurich', 'TI' -> 'Ticino').
     - If there is a 'highlight' field with a quote, paraphrase it into a professional achievement statement.
     - Salary should NOT be mentioned in the bio.
+    - Do not mention years of experience (already displayed separately).
+    - Do not mention languages the candidate speaks (already displayed separately).
     - Keep it to 3-4 sentences maximum.
   `;
 

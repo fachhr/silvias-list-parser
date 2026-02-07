@@ -1,6 +1,6 @@
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
-import OpenAI from 'openai';
+import OpenAI, { AzureOpenAI } from 'openai';
 import pdf from 'pdf-parse/lib/pdf-parse.js';
 import mammoth from 'mammoth';
 import { PDFDocument, PDFName } from 'pdf-lib';
@@ -40,7 +40,15 @@ const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const useAzureOpenAI = !!process.env.AZURE_OPENAI_ENDPOINT;
+const openai = useAzureOpenAI
+  ? new AzureOpenAI({
+      apiKey: process.env.AZURE_OPENAI_API_KEY,
+      endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+      apiVersion: process.env.AZURE_OPENAI_API_VERSION || '2024-10-21',
+      deployment: process.env.AZURE_OPENAI_DEPLOYMENT_PARSING || 'gpt-4o',
+    })
+  : new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // ==========================================
 // CONSTANTS
@@ -1620,6 +1628,29 @@ app.post('/api/v1/parse', (req, res, next) => {
         // Non-fatal - parsing still succeeded, just profile update failed
       } else {
         console.log(`[Job ${jobId}] User profile updated with ${Object.keys(profileUpdateData).length} parsed fields`);
+      }
+
+      // Also update talent_profiles (display-only, PII-free)
+      const displayData = { ...profileUpdateData };
+
+      // Strip companyName from professional_experience entries
+      if (displayData.professional_experience && Array.isArray(displayData.professional_experience)) {
+        displayData.professional_experience = displayData.professional_experience.map(entry => {
+          const { companyName, ...rest } = entry;
+          return rest;
+        });
+      }
+
+      const { error: displayUpdateError } = await supabase
+        .from('talent_profiles')
+        .update(displayData)
+        .eq('profile_id', jobRecord.profile_id);
+
+      if (displayUpdateError) {
+        console.error(`[Job ${jobId}] Failed to update talent_profiles:`, displayUpdateError.message);
+        // Non-fatal
+      } else {
+        console.log(`[Job ${jobId}] talent_profiles updated with ${Object.keys(displayData).length} display fields`);
       }
     }
 

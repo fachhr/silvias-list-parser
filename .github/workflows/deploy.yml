@@ -1,0 +1,37 @@
+name: Deploy to Azure Container Apps
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+env:
+  REGISTRY_URL: acrsetselect.azurecr.io
+  IMAGE_NAME: cv-parser
+  RESOURCE_GROUP: rg-setselect-parser
+  CONTAINER_APP_NAME: ca-cv-parser
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - uses: azure/docker-login@v2
+        with:
+          login-server: ${{ env.REGISTRY_URL }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+      - name: Build and push image
+        run: |
+          docker build --platform linux/amd64 \
+            -t ${{ env.REGISTRY_URL }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -t ${{ env.REGISTRY_URL }}/${{ env.IMAGE_NAME }}:latest .
+          docker push ${{ env.REGISTRY_URL }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker push ${{ env.REGISTRY_URL }}/${{ env.IMAGE_NAME }}:latest
+      - uses: azure/container-apps-deploy-action@v2
+        with:
+          resourceGroup: ${{ env.RESOURCE_GROUP }}
+          containerAppName: ${{ env.CONTAINER_APP_NAME }}
+          imageToDeploy: ${{ env.REGISTRY_URL }}/${{ env.IMAGE_NAME }}:${{ github.sha }}

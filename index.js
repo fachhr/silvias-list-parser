@@ -1629,6 +1629,29 @@ app.post('/api/v1/parse', (req, res, next) => {
       } else {
         console.log(`[Job ${jobId}] User profile updated with ${Object.keys(profileUpdateData).length} parsed fields`);
       }
+
+      // Also update talent_profiles (display-only, PII-free)
+      const displayData = { ...profileUpdateData };
+
+      // Strip companyName from professional_experience entries
+      if (displayData.professional_experience && Array.isArray(displayData.professional_experience)) {
+        displayData.professional_experience = displayData.professional_experience.map(entry => {
+          const { companyName, ...rest } = entry;
+          return rest;
+        });
+      }
+
+      const { error: displayUpdateError } = await supabase
+        .from('talent_profiles')
+        .update(displayData)
+        .eq('profile_id', jobRecord.profile_id);
+
+      if (displayUpdateError) {
+        console.error(`[Job ${jobId}] Failed to update talent_profiles:`, displayUpdateError.message);
+        // Non-fatal
+      } else {
+        console.log(`[Job ${jobId}] talent_profiles updated with ${Object.keys(displayData).length} display fields`);
+      }
     }
 
     console.log(`[Job ${jobId}] CV parsing completed successfully`);

@@ -1039,7 +1039,7 @@ function createComprehensiveParsingPrompt(cvText) {
   `;
 
   return `
-You are an expert CV data extraction assistant. Your goal is to extract as much structured information as possible from CVs to save users time filling out their profiles.
+You are an expert CV data extraction assistant. Your goal is to extract as much structured information as possible from CVs to save users time filling out their profiles. You MUST output ALL extracted text in English. If the CV is in any other language, translate all text fields to English while preserving the exact meaning, structure, and level of detail. Proper nouns (company names, university names, person names, specific certification titles) remain unchanged.
 
 CRITICAL EXTRACTION RULES:
 
@@ -1165,6 +1165,8 @@ CV TEXT TO PARSE:
 ---
 ${cvText}
 ---
+
+Remember: ALL text in the output MUST be in English. Translate any non-English text while keeping the exact meaning and detail intact.
 
 Extract the data now and return ONLY the JSON object.
   `;

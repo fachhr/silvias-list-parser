@@ -149,11 +149,12 @@ BEGIN
       ),
 
       -- Functional expertise (merged value preferred)
+      -- Column is TEXT[] — convert JSONB array to TEXT array
       functional_expertise = COALESCE(
         CASE
           WHEN NEW.extracted_data ? 'functional_expertise_merged'
-            THEN (NEW.extracted_data->>'functional_expertise_merged')::JSONB
-          ELSE (NEW.extracted_data->>'functional_expertise')::JSONB
+            THEN ARRAY(SELECT jsonb_array_elements_text((NEW.extracted_data->>'functional_expertise_merged')::JSONB))
+          ELSE ARRAY(SELECT jsonb_array_elements_text((NEW.extracted_data->>'functional_expertise')::JSONB))
         END,
         functional_expertise
       ),
@@ -316,11 +317,12 @@ BEGIN
       ),
 
       -- Functional expertise (merged value preferred)
+      -- Column is TEXT[] — convert JSONB array to TEXT array
       functional_expertise = COALESCE(
         CASE
           WHEN NEW.extracted_data ? 'functional_expertise_merged'
-            THEN (NEW.extracted_data->>'functional_expertise_merged')::JSONB
-          ELSE (NEW.extracted_data->>'functional_expertise')::JSONB
+            THEN ARRAY(SELECT jsonb_array_elements_text((NEW.extracted_data->>'functional_expertise_merged')::JSONB))
+          ELSE ARRAY(SELECT jsonb_array_elements_text((NEW.extracted_data->>'functional_expertise')::JSONB))
         END,
         functional_expertise
       ),

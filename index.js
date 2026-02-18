@@ -543,14 +543,32 @@ function fuzzyMatchToOptions(value, optionsArray, threshold = 0.7) {
   });
   if (partialMatch) return partialMatch;
 
-  // Common mappings for countries
-  const countryMappings = {
+  // Label-based partial match - check if value matches any option's label
+  const labelMatch = optionsArray
+    .filter(opt => typeof opt === 'object' && opt.value && opt.label)
+    .find(opt => {
+      const labelLower = opt.label.toLowerCase();
+      return labelLower.includes(valueLower) || valueLower.includes(labelLower);
+    });
+  if (labelMatch) return labelMatch.value;
+
+  // Common mappings for countries and proficiency synonyms
+  const commonMappings = {
+    // Countries
     'usa': 'United States',
     'uk': 'United Kingdom',
     'uae': 'United Arab Emirates',
+    // Language proficiency synonyms not in any label
+    'mother tongue': 'Fluent',
+    'elementary': 'Beginner',
+    'basic': 'Beginner',
+    'conversational': 'Intermediate',
+    'working proficiency': 'Intermediate',
+    'proficient': 'Advanced',
+    'professional working': 'Intermediate',
   };
-  if (countryMappings[valueLower]) {
-    return countryMappings[valueLower];
+  if (commonMappings[valueLower]) {
+    return commonMappings[valueLower];
   }
 
   return null; // No confident match
@@ -1157,6 +1175,14 @@ CRITICAL EXTRACTION RULES:
     - "Vice President of Finance Club" → "VP Finance Club"
     - "Teaching Assistant" → "Teaching Assistant" (keep as-is)
     - "Research Assistant" → "Research Assistant" (keep as-is)
+
+18. **LANGUAGE PROFICIENCY MAPPING** - Map language proficiency levels from CVs to these exact values:
+    - Native / Mother tongue / C2 → 'Fluent'
+    - Fluent / Proficient / C1-C2 → 'Fluent'
+    - Advanced / C1 → 'Advanced'
+    - Intermediate / Conversational / Working proficiency / B1-B2 → 'Intermediate'
+    - Beginner / Elementary / Basic / A1-A2 → 'Beginner'
+    Always use the exact value string (e.g., 'Fluent', not 'Native' or 'C2').
 
 EXPECTED JSON OUTPUT STRUCTURE:
 ${jsonStructure}

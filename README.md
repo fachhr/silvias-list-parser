@@ -268,6 +268,8 @@ WHERE trigger_name = 'trigger_sync_parsed_cv_data';
 
 This trigger automatically syncs parsed CV data from `cv_parsing_jobs` to `user_profiles` when parsing completes.
 
+**Critical**: After any database migration that changes column types, you **must** re-deploy the trigger by re-running `sync_trigger.sql` in the SQL Editor. The trigger is a compiled function — column type changes don't propagate automatically.
+
 ## Deployment to Railway
 
 ### Quick Deploy
@@ -431,6 +433,18 @@ curl -X POST https://your-app.railway.app/parse \
 - Verify SUPABASE_URL is correct
 - Check SUPABASE_SERVICE_ROLE_KEY (not anon key!)
 - Ensure database schema is up to date
+
+### COALESCE type mismatch errors (`COALESCE types jsonb and text[] cannot be matched`)
+
+**Symptom**: Parser extracts CV data successfully but fails at the final database write. Railway logs show the COALESCE error. Profiles have `parsing_completed_at = NULL` and are invisible on the site.
+
+**Root cause**: The sync trigger casts extracted data to JSONB, but a target column is `TEXT[]`. Any COALESCE type mismatch rolls back the entire transaction.
+
+**How to fix**:
+1. Find which columns are still `TEXT[]`: `SELECT column_name, udt_name FROM information_schema.columns WHERE table_name = 'user_profiles' AND udt_name = '_text';`
+2. Update `database/sync_trigger.sql` — use `ARRAY(SELECT jsonb_array_elements_text(...))` instead of `::JSONB` for `TEXT[]` columns
+3. Re-run `sync_trigger.sql` in the Supabase SQL Editor
+4. Reset and re-trigger failed jobs (see full runbook in `setselect-frontend/INFRASTRUCTURE.md`)
 
 ### Profile picture not extracting
 - Check ENABLE_PROFILE_PICTURE_EXTRACTION=true

@@ -10,12 +10,10 @@ import sharp from 'sharp';
 import {
   COUNTRY_OPTIONS,
   GENERAL_FIELD_OPTIONS,
-  SPECIFIC_FIELD_OPTIONS,
   DEGREE_TYPE_OPTIONS,
   POSITION_TYPE_OPTIONS,
   LANGUAGE_PROFICIENCY_OPTIONS,
   SKILL_PROFICIENCY_OPTIONS,
-  INDUSTRY_SKILL_OPTIONS,
   DURATION_OPTIONS,
   JOB_TYPE_OPTIONS,
   LOCATION_OPTIONS,
@@ -715,14 +713,11 @@ function validateAndCorrectData(extractedData) {
         }
       }
 
-      const certificateTypes = ['Certificate', 'CAS', 'DAS', 'Federal Diploma'];
-      const isCertificate = certificateTypes.includes(finalDegreeType);
-
       return {
         ...edu,
         degreeType: finalDegreeType,
-        generalField: isCertificate ? null : validateFieldValue('generalField', edu.generalField, GENERAL_FIELD_OPTIONS),
-        specificField: isCertificate ? null : validateFieldValue('specificField', edu.specificField, SPECIFIC_FIELD_OPTIONS),
+        generalField: validateFieldValue('generalField', edu.generalField, GENERAL_FIELD_OPTIONS),
+        specificField: typeof edu.specificField === 'string' ? edu.specificField.trim() : null,
         country: validateFieldValue('country', edu.country, COUNTRY_OPTIONS),
         startDate: validateAndCorrectDate(edu.startDate),
         endDate: validateAndCorrectDate(edu.endDate),
@@ -951,7 +946,7 @@ function inferPositionType(positionName) {
   const nameLower = positionName.toLowerCase();
 
   if (/intern/i.test(nameLower)) return 'Internship';
-  if (/freelance|contractor|consultant/i.test(nameLower)) return 'Freelance';
+  if (/freelance|contractor|consultant/i.test(nameLower)) return 'Freelance / Contractor';
   if (/part[- ]?time/i.test(nameLower)) return 'Part-time';
   if (/volunteer/i.test(nameLower)) return 'Volunteer';
 
@@ -1056,12 +1051,10 @@ function getParsingInstructions() {
   // Dynamically generate all possible option strings
   const countries = getOptionsString(COUNTRY_OPTIONS);
   const generalFields = getOptionsString(GENERAL_FIELD_OPTIONS);
-  const specificFields = getOptionsString(SPECIFIC_FIELD_OPTIONS);
   const degreeTypes = getOptionsString(DEGREE_TYPE_OPTIONS);
   const positionTypes = getOptionsString(POSITION_TYPE_OPTIONS);
   const languageProficiencies = getOptionsString(LANGUAGE_PROFICIENCY_OPTIONS);
   const skillLevels = getOptionsString(SKILL_PROFICIENCY_OPTIONS);
-  const industrySkills = getOptionsString(INDUSTRY_SKILL_OPTIONS);
   const durations = getOptionsString(DURATION_OPTIONS);
   const jobTypes = getOptionsStringForSimpleArray(JOB_TYPE_OPTIONS);
   const locations = getOptionsString(LOCATION_OPTIONS);
@@ -1089,7 +1082,7 @@ function getParsingInstructions() {
       "universityName": "string",
       "degreeType": "string (${degreeTypes}) | null",
       "generalField": "string (${generalFields}) | null",
-      "specificField": "string (${specificFields}) | null",
+      "specificField": "string (exact field of study from CV, e.g. 'Computer Science', 'Commodities Trading', 'International Hospitality Management') | null",
       "overallGrade": "string (e.g., 'First Class Honours', 'Magna Cum Laude', 'GPA 3.8/4.0') | null",
       "overallGradeValue": "string (numeric value, e.g., '3.8') | null",
       "overallGradeMax": "string (max value, e.g., '4.0') | null",
@@ -1119,7 +1112,7 @@ function getParsingInstructions() {
     }],
     "technical_skills": [{ "name": "string", "level": "${skillLevels}" }],
     "soft_skills": [{ "name": "string", "level": "${skillLevels}" }], // Infer from experience descriptions — see Rule 11. Empty arrays are almost never correct for experienced professionals.
-    "industry_specific_skills": [{ "industry": "string (${industrySkills})", "name": "string", "level": "${skillLevels}" }], // Domain expertise, methodologies, business knowledge — see Rule 11. Empty arrays are almost never correct for experienced professionals.
+    "industry_specific_skills": [{ "industry": "string (industry/sector context, e.g. 'Investment Banking', 'Energy Trading', 'Pharmaceuticals', 'Management Consulting')", "name": "string", "level": "${skillLevels}" }], // Domain expertise, methodologies, business knowledge — see Rule 11. Empty arrays are almost never correct for experienced professionals.
     "base_languages": [{ "language": "string", "proficiency": "${languageProficiencies}" }],
     "certifications": [{
       "name": "string",
@@ -1184,6 +1177,7 @@ CRITICAL EXTRACTION RULES:
       Examples: Leadership, Communication, Teamwork, Problem Solving, Negotiation, Mentoring, Adaptability, Relationship Management, Collaboration, Analytical Thinking, Attention to Detail, Time Management, Conflict Resolution.
       NOT soft skills: Project Management, Sales, Budgeting, Market Analysis, Business Development, Compliance, Accounting, Financial Analysis, Operations Management, Data Analysis — these are domain/business skills.
     - **industry_specific_skills** = DOMAIN: Business knowledge, methodologies, sector-specific expertise, and professional competencies that define what the person knows about their industry.
+      For the "industry" field, write the specific industry/sector context (e.g., 'Energy Trading', 'Wealth Management', 'Biotech R&D'). Be specific — don't use generic terms like 'Finance' when 'Commodity Derivatives' is more accurate.
       Examples: Financial Modeling, Derivatives & Hedging, Risk Management, Portfolio Optimization, Regulatory Compliance, Trade Surveillance, Supply Chain Management, Market Analysis, Business Strategy, M&A, Audit, Tax Advisory, Clinical Research, Drug Development.
 
     **Inference principles for soft_skills** — Do NOT rely only on explicit "Skills" sections. Actively scan experience descriptions for behavioral evidence:
@@ -1228,7 +1222,9 @@ CRITICAL EXTRACTION RULES:
     - Engineering diplomas: 'BSc' minimum, 'MSc' if 5-year integrated program.
     - Postgraduate Diploma / Graduate Certificate → 'Certificate'.
 
-    **For certificate-type degrees** (Certificate, CAS, DAS, Federal Diploma): set generalField and specificField to null. The certificate name already describes the field of study and is captured in the certifications array. Do not force-fit these into a dropdown category.
+    **specificField** — For ALL education entries, write the exact field of study or program name from the CV as free text (e.g., "Computer Science", "Commodities Trading", "International Hospitality Management"). Do not map to a dropdown. For **generalField**, categorize into one of the provided broad categories.
+
+    **For certificate-type degrees** (Certificate, CAS, DAS, Federal Diploma): set generalField to null. Also add the certificate to the certifications array with its full name.
 
     **WARNING: AS (Associate of Science) and AA (Associate of Arts) are ONLY for US-style 2-year community college degrees. Do NOT assign Associate degrees to European, Asian, or other international qualifications.**
 
